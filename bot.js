@@ -41,7 +41,11 @@ client.on("guildDelete", guild => {
 client.on('message', (receivedMsg) => {
   if (receivedMsg.author.bot) return; // No response if sent by bot
 
-  const logs = receivedMsg.guild.channels.find(channel => channel.name === "logs");
+  let role = 590540221716627466
+
+  if(receivedMsg.member.roles.has(role)) return;
+
+  const logs = receivedMsg.guild.channels.find(channel => channel.name === "dgm-logs");
   if (!logs) console.log('The logs channel does not exist and cannot be created');
 
   if (receivedMsg.content.indexOf(config.prefix) === 0) processCmd(receivedMsg, logs) // Process if starts with configured prefix
@@ -173,6 +177,9 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
         break;
       case "flush":
         // Do something
+        break;
+      case "h":
+        helpCmd(["dgm"], receivedMsg, logChan)
         break;
       default:
         logChan.send("I do not understand this command, if it is right, contact the bot programmer for debug");
