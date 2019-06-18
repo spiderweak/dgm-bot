@@ -1,1 +1,1 @@
-Add DGM to server and allow Send Message and Message History
+Add DGM to server and allow Send and Pin Message
