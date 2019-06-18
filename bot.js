@@ -41,11 +41,11 @@ client.on("guildDelete", guild => {
 client.on('message', (receivedMsg) => {
   if (receivedMsg.author.bot) return; // No response if sent by bot
 
-  if (receivedMsg.content.indexOf(config.prefix) === 0) { // Process if starts with configured prefix
-    processCmd(receivedMsg)
-  }
+  if (receivedMsg.content.indexOf(config.prefix) === 0) processCmd(receivedMsg) // Process if starts with configured prefix
 
-//  if (receivedMsg.mentions.members.size === 2 && )
+  console.log(receivedMsg.mentions.members.first())
+
+//  if (receivedMsg.mentions.members.users === 2 && )
 //    return message.reply("Please mention a user to kick");
 });
 
