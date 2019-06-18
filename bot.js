@@ -41,7 +41,10 @@ client.on("guildDelete", guild => {
 client.on('message', (receivedMsg) => {
   if (receivedMsg.author.bot) return; // No response if sent by bot
 
-  if (receivedMsg.content.indexOf(config.prefix) === 0) processCmd(receivedMsg) // Process if starts with configured prefix
+  const logs = receivedMsg.guild.channels.find(channel => channel.name === "logs");
+  if (!logs) console.log('The logs channel does not exist and cannot be created');
+
+  if (receivedMsg.content.indexOf(config.prefix) === 0) processCmd(receivedMsg, logs) // Process if starts with configured prefix
 
   console.log(receivedMsg.mentions.members.first())
 
@@ -54,7 +57,7 @@ client.on('message', (receivedMsg) => {
 // Functions
 // --------------------
 
-function processCmd(receivedMsg){
+function processCmd(receivedMsg, logChan){
   let fullCmd = receivedMsg.content.substr(1) // Removes "!"
   let splitCmd = fullCmd.split(" ") // Split using spaces
   let primaryCmd = splitCmd[0] // First word determines action
@@ -64,18 +67,18 @@ function processCmd(receivedMsg){
   console.log("Arguments : " + args)
 
   if (primaryCmd === "help" || primaryCmd === "h") {
-    helpCmd(args, receivedMsg)
+    helpCmd(args, receivedMsg, logChan)
   } else if (primaryCmd == "dgm") {
-    groceriesHandlingCmd(args, receivedMsg)
+    groceriesHandlingCmd(args, receivedMsg, logChan)
   } else {
-    receivedMsg.channel.send("I didn't understand. Try `!help`")
+    logChan.send("I didn't understand. Try `!help`")
   }
 }
 
-function helpCmd(args, receivedMsg) {
+function helpCmd(args, receivedMsg, logChan) {
   if (args.length > 0) {
     if (args[0] === "help" || args[0] === "h") {
-      helpCmd(args.slice(1), receivedMsg)
+      helpCmd(args.slice(1), receivedMsg, logChan)
     } else {
       var handled_command_array = []
       for (var index=0; index < main_arg['command'].length; index++) {
@@ -84,32 +87,32 @@ function helpCmd(args, receivedMsg) {
       }
       if (handled_command_array.includes(args[0])) {
         if (args[0] === "dgm") {
-          receivedMsg.channel.send("I can help you with that, here is how " + args[0] + " works :")
+          logChan.send("I can help you with that, here is how " + args[0] + " works :")
           for (var index=0; index < dgm_arg['command'].length; index++) {
-            receivedMsg.channel.send("" + (dgm_arg['command'][index]['name']) + " : " + (dgm_arg['command'][index]['desc']))
+            logChan.send("" + (dgm_arg['command'][index]['name']) + " : " + (dgm_arg['command'][index]['desc']))
           }
         }
       } else {
-        receivedMsg.channel.send("I do not provide help for this function, seems I don't know how to use it either")
+        logChan.send("I do not provide help for this function, seems I don't know how to use it either")
       }
     }
   } else {
-    receivedMsg.channel.send("Here is the list of commands I can handle")
+    logChan.send("Here is the list of commands I can handle")
     for (var index=0; index < main_arg['command'].length; index++) {
-      receivedMsg.channel.send("" + (main_arg['command'][index]['name']) + " : " + (main_arg['command'][index]['desc']))
+      logChan.send("" + (main_arg['command'][index]['name']) + " : " + (main_arg['command'][index]['desc']))
     }
   }
 }
 
-function groceriesHandlingCmd(args, receivedMsg) {
+function groceriesHandlingCmd(args, receivedMsg, logChan) {
   if (args.length > 0) {
     switch (args[0]) {
       case "list":
       case "ls":
         if (args.length > 1) {
-          if (args[1] === "ok" || args[1] === "Ok" || args[1] === "OK") receivedMsg.channel.send(JSON.stringify(ok_list))
+          if (args[1] === "ok" || args[1] === "Ok" || args[1] === "OK") logChan.send(JSON.stringify(ok_list))
         } else {
-          receivedMsg.channel.send(JSON.stringify(current_list))
+          logChan.send(JSON.stringify(current_list))
         }
         break;
       case "add":
@@ -118,9 +121,9 @@ function groceriesHandlingCmd(args, receivedMsg) {
           if (isNaN(current_list[args[1]])) current_list[args[1]]=0;
           quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : 1
           current_list[args[1]] += quantity 
-          receivedMsg.channel.send("Added " + quantity + " of " + args[1] + " to the grocery list")
+          logChan.send("Added " + quantity + " of " + args[1] + " to the grocery list")
         } else {
-          receivedMsg.channel.send("Nothing to add to the grocery list")
+          logChan.send("Nothing to add to the grocery list")
         }
         break;
       case "ok":
@@ -131,25 +134,25 @@ function groceriesHandlingCmd(args, receivedMsg) {
           if (current_list[args[1]]<= 0) delete current_list[args[1]];
           if (isNaN(ok_list[args[1]])) ok_list[args[1]]=0;
           ok_list[args[1]] += quantity            
-          receivedMsg.channel.send("Moved " + quantity + " of " + args[1] + " from the grocery list to the OK List")
+          logChan.send("Moved " + quantity + " of " + args[1] + " from the grocery list to the OK List")
         } else {
-          receivedMsg.channel.send("Nothing to move to the OK list")
+          logChan.send("Nothing to move to the OK list")
         }        
         break;
       case "nok":
         if (args.length < 2 && isNaN(ok_list[args[1]])) {
-          receivedMsg.channel.send("Nothing to remove from the OK list")
+          logChan.send("Nothing to remove from the OK list")
         } else {
           quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : ok_list[args[1]]
           ok_list[args[1]] -= quantity;
           if (ok_list[args[1]]<= 0) delete ok_list[args[1]];
           current_list[args[1]] += quantity
-          receivedMsg.channel.send("Moved " + quantity + " of " + args[1] + " from the OK list to the grocery List")
+          logChan.send("Moved " + quantity + " of " + args[1] + " from the OK list to the grocery List")
         } 
         break;
       case "all_ok":
 //        for (var index=0, index< current_list["command"].length, index++) {
-//          handleGroceriesCmd(["ok",(Object.keys(current_list["command"][index])[0])], receivedMsg)
+//          handleGroceriesCmd(["ok",(Object.keys(current_list["command"][index])[0])], receivedMsg, logChan)
 //        }
         break;
       case "delete":
@@ -159,10 +162,10 @@ function groceriesHandlingCmd(args, receivedMsg) {
         if (args.length > 1) {
           quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : current_list[args[1]]
           current_list[args[1]] -= quantity
-          receivedMsg.channel.send("Removed " + quantity + " of " + args[1] + " from the grocery list")
+          logChan.send("Removed " + quantity + " of " + args[1] + " from the grocery list")
           if (current_list[args[1]] <= 0) delete current_list[args[1]]
         } else {
-          receivedMsg.channel.send("Nothing to add to the grocery list")
+          logChan.send("Nothing to add to the grocery list")
         }
         break;
       case "pay":
@@ -172,11 +175,11 @@ function groceriesHandlingCmd(args, receivedMsg) {
         // Do something
         break;
       default:
-        receivedMsg.channel.send("I do not understand this command, if it is right, contact the bot programmer for debug");
+        logChan.send("I do not understand this command, if it is right, contact the bot programmer for debug");
     }
   } else {
-    receivedMsg.channel.send("Don't you know how to handle the grocery list ?")
-    helpCmd(["dgm"], receivedMsg)
+    logChan.send("Don't you know how to handle the grocery list ?")
+    helpCmd(["dgm"], receivedMsg, logChan)
   }
 }
 
