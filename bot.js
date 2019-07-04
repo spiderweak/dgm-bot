@@ -136,7 +136,7 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
       case "list":
       case "ls":
         if (args.length > 1) {
-          if (args[1] === "ok" || args[1] === "Ok" || args[1] === "OK") logChan.send(JSON.stringify(ok_list))
+          if (args[1] === "ok" || args[1] === "Ok" || args[1] === "OK") logChan.send(JSON.stringify(dumpDB(ok_list)))
         } else {
           logChan.send(JSON.stringify(dumpDB(current_list)))
         }
@@ -153,26 +153,22 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
         break;
       case "ok":
         if (args.length > 1) {
-          if (isNaN(current_list[args[1]])) current_list[args[1]]=0;
-          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : current_list[args[1]]
-          current_list[args[1]] -= quantity;
-          if (current_list[args[1]]<= 0) delete current_list[args[1]];
-          if (isNaN(ok_list[args[1]])) ok_list[args[1]]=0;
-          ok_list[args[1]] += quantity            
-          logChan.send("Moved " + quantity + " of " + args[1] + " from the grocery list to the OK List")
+          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : getQuantityInDB(args[1], current_list)
+          insertInDB({'name':args[1], 'quantity':quantity}, ok_list)
+          removeFromDB({'name':args[1], 'quantity':quantity}, current_list)
+          logChan.send("Moved " + quantity + " of " + args[1] + " from the grocery list")
         } else {
           logChan.send("Nothing to move to the OK list")
         }        
         break;
       case "nok":
-        if (args.length < 2 && isNaN(ok_list[args[1]])) {
-          logChan.send("Nothing to remove from the OK list")
-        } else {
-          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : ok_list[args[1]]
-          ok_list[args[1]] -= quantity;
-          if (ok_list[args[1]]<= 0) delete ok_list[args[1]];
-          current_list[args[1]] += quantity
+        if (args.length > 1) {
+          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : getQuantityInDB(args[1], ok_list)
+          insertInDB({'name':args[1], 'quantity':quantity}, current_list)
+          removeFromDB({'name':args[1], 'quantity':quantity}, ok_list)
           logChan.send("Moved " + quantity + " of " + args[1] + " from the OK list to the grocery List")
+        } else {
+          logChan.send("Nothing to move from the OK list")
         } 
         break;
       case "all_ok":
@@ -185,19 +181,17 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
       case "d":
       case "rm":
         if (args.length > 1) {
-          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? Math.abs(parseInt(args[2])) : -1
-          if (quantity === -1) {
-            logChan.send("Removed all " + args[1] + " from the grocery list")
-          } else {
-            logChan.send("Removed " + quantity + " of " + args[1] + " from the grocery list")
-          }
+          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : getQuantityInDB(args[1], current_list)
           removeFromDB({'name':args[1], 'quantity':quantity}, current_list)
+          logChan.send("Removed " + quantity + " of " + args[1] + " from the grocery list")
         } else {
           logChan.send("Nothing to add to the grocery list")
         }
         break;
       case "pay":
-        // Do something
+         backupDB(ok_list) 
+         logChan.send("Thanks for doing the groceries, don't forget to add the amount paid on Splitwise")
+         flushDB(ok_list)
         break;
       case "flush":
         // Do something
@@ -224,6 +218,13 @@ function existsInDB(name_to_test, db) {
   const quantity = selectStatement.get(name_to_test)
   if (quantity === undefined) return false
   return true
+}
+
+function getQuantityInDB(name_to_test, db) {
+  const selectStatement = db.prepare('SELECT quantity FROM list WHERE name = ?');
+  const quantity = selectStatement.get(name_to_test)
+  if (quantity === undefined) return -1
+  return quantity['quantity']
 }
 
 function insertInDB(item, db) {
@@ -275,6 +276,19 @@ function dumpDB(db){
   return db.prepare('SELECT name, quantity FROM list').all()
 }
 
+function flushDB(db){
+  return db.prepare('DELETE FROM list').run()
+}
+
+function backupDB(db){
+  db.backup(`archives/${Date.now()}.db`)
+    .then(() => {
+      console.log('backup complete!');
+    })
+    .catch((err) => {
+      console.log('backup failed:', err);
+    });
+}
 
 // --------------------
 // Discord Client Login
