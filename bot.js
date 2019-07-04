@@ -153,10 +153,16 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
         break;
       case "ok":
         if (args.length > 1) {
-          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : getQuantityInDB(args[1], current_list)
-          insertInDB({'name':args[1], 'quantity':quantity}, ok_list)
-          removeFromDB({'name':args[1], 'quantity':quantity}, current_list)
-          logChan.send("Moved " + quantity + " of " + args[1] + " from the grocery list")
+          if (existsInDB(args[1], current_list)) {
+            quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : getQuantityInDB(args[1], current_list)
+            insertInDB({'name':args[1], 'quantity':quantity}, ok_list)
+            removeFromDB({'name':args[1], 'quantity':quantity}, current_list)
+            logChan.send("Moved " + quantity + " of " + args[1] + " from the grocery list")
+          } else {
+            quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : 1
+            insertInDB({'name':args[1], 'quantity':quantity}, ok_list)
+            logChan.send("Moved " + quantity + " of " + args[1] + " from the grocery list")
+          }
         } else {
           logChan.send("Nothing to move to the OK list")
         }        
@@ -172,8 +178,8 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
         } 
         break;
       case "all_ok":
-//        for (var index=0, index< current_list["command"].length, index++) {
-//          handleGroceriesCmd(["ok",(Object.keys(current_list["command"][index])[0])], receivedMsg, logChan)
+//        for (var index=0; index < countLinesInDB(current_list); index++) {
+//          handleGroceriesCmd(["ok",, receivedMsg, logChan)
 //        }
         break;
       case "delete":
@@ -194,7 +200,11 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
          flushDB(ok_list)
         break;
       case "flush":
-        // Do something
+        if (args.length > 1) {
+          if (args[1] === "ok" || args[1] === "Ok" || args[1] === "OK") flushDB(ok_list)
+        } else {
+          flushDB(current_list)
+        }
         break;
       case "h":
         helpCmd(["dgm"], receivedMsg, logChan)
@@ -223,7 +233,7 @@ function existsInDB(name_to_test, db) {
 function getQuantityInDB(name_to_test, db) {
   const selectStatement = db.prepare('SELECT quantity FROM list WHERE name = ?');
   const quantity = selectStatement.get(name_to_test)
-  if (quantity === undefined) return -1
+  if (quantity === undefined) return 0
   return quantity['quantity']
 }
 
@@ -288,6 +298,10 @@ function backupDB(db){
     .catch((err) => {
       console.log('backup failed:', err);
     });
+}
+
+function countLinesInDB(db){
+  return ((db.prepare('SELECT COUNT(*) FROM list').get())['COUNT(*)'])
 }
 
 // --------------------
