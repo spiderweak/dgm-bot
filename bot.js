@@ -138,28 +138,15 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
         if (args.length > 1) {
           if (args[1] === "ok" || args[1] === "Ok" || args[1] === "OK") logChan.send(JSON.stringify(ok_list))
         } else {
-          logChan.send(JSON.stringify(current_list))
+          logChan.send(JSON.stringify(dumpDB(current_list)))
         }
         break;
       case "add":
       case "a":
         if (args.length > 1) {
-           
-          
-          
-          
-          
-//          if (isNaN(current_list[args[1]])) current_list[args[1]]=0;
-//          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : 1
-          var toInsert = new Object()
-          toInsert['name']=args[1]
-          toInsert['quantity']=1
-          existsInDB(args[1], current_list)
-          existsInDB('tata', current_list)
-          insertInDB(toInsert,current_list)
-          
-//          current_list[args[1]] += quantity 
-//          logChan.send("Added " + quantity + " of " + args[1] + " to the grocery list")
+          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : 1
+          insertInDB({'name':args[1], 'quantity':quantity},current_list)
+          logChan.send("Added " + quantity + " of " + args[1] + " to the grocery list")
         } else {
           logChan.send("Nothing to add to the grocery list")
         }
@@ -198,10 +185,13 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
       case "d":
       case "rm":
         if (args.length > 1) {
-          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : current_list[args[1]]
-          current_list[args[1]] -= quantity
-          logChan.send("Removed " + quantity + " of " + args[1] + " from the grocery list")
-          if (current_list[args[1]] <= 0) delete current_list[args[1]]
+          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? Math.abs(parseInt(args[2])) : -1
+          if (quantity === -1) {
+            logChan.send("Removed all " + args[1] + " from the grocery list")
+          } else {
+            logChan.send("Removed " + quantity + " of " + args[1] + " from the grocery list")
+          }
+          removeFromDB({'name':args[1], 'quantity':quantity}, current_list)
         } else {
           logChan.send("Nothing to add to the grocery list")
         }
@@ -230,36 +220,61 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
 // --------------------
 
 function existsInDB(name_to_test, db) {
-  const select = db.prepare('SELECT quantity FROM list WHERE name = ?');
-  const quantity = select.get(name_to_test)
+  const selectStatement = db.prepare('SELECT quantity FROM list WHERE name = ?');
+  const quantity = selectStatement.get(name_to_test)
   if (quantity === undefined) return false
   return true
 }
 
 function insertInDB(item, db) {
   if (existsInDB(item['name'], db)) {
-  // Do Stuff
-  
+  updateInDB(item, db)
   } else {
-  const insert = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
+  const insertStatement = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
   console.log(item)
-  insert.run(item)
+  insertStatement.run(item)
   }
 }
 
 function insertManyInDB(list, db) {
-  const insert = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
+  const insertStatement = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
   
   const insertMany = db.transaction((list) => {
-    for (const item of list) insert.run(item);
+    for (const item of list) insertStatement.run(item);
   });
 }
 
-function removeFromDB(item, db) {
-   name_to_delete = item['name']
-   const deletefromdb = db.prepare('DELETE FROM list WHERE name= ?');
-   deletefromdb.run(name_to_delete)
+function updateInDB(item, db) {
+  const selectStatement = db.prepare('SELECT quantity FROM list WHERE name = ?');
+  const quantity = selectStatement.get(item['name'])
+  if (quantity === undefined) {
+    console.log("Item does not exist, Inserting instead")
+    insertInDB(item,db)
+  } else {
+    const updateStatement = db.prepare('UPDATE list SET quantity = ? WHERE name = ?');
+    updateStatement.run(quantity['quantity']+item['quantity'], item['name'])
+  }
 }
+
+function removeFromDB(item, db) {
+  const selectStatement = db.prepare('SELECT quantity FROM list WHERE name = ?');
+  const quantity = selectStatement.get(item['name'])
+  if (quantity === undefined) {
+    console.log("Item does not exist")
+  } else if (item['quantity'] <= 0 || quantity['quantity'] - item['quantity'] <= 0) {
+    name_to_delete = item['name']
+    const deleteStatement = db.prepare('DELETE FROM list WHERE name = ?');
+    deleteStatement.run(name_to_delete)
+  } else {
+    const updateStatement = db.prepare('UPDATE list SET quantity = ? WHERE name = ?');
+    updateStatement.run(quantity['quantity']-item['quantity'], item['name'])
+  }
+}
+
+function dumpDB(db){
+  return db.prepare('SELECT name, quantity FROM list').all()
+}
+
 
 // --------------------
 // Discord Client Login
