@@ -41,9 +41,9 @@ client.on("guildDelete", guild => {
 client.on('message', (receivedMsg) => {
   if (receivedMsg.author.bot) return; // No response if sent by bot
 
-  let role = 590540221716627466
+  //let role = 590540221716627466
 
-  if(receivedMsg.member.roles.has(role)) return;
+  if (!(receivedMsg.member.roles.find(r => r.name === "Coloc"))) return;
 
   const logs = receivedMsg.guild.channels.find(channel => channel.name === "dgm-logs");
   if (!logs) console.log('The logs channel does not exist and cannot be created');
