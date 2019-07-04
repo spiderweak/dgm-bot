@@ -5,6 +5,7 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const config = require('./config.json');
+const Database = require('better-sqlite3')
 
 // --------------------
 // Documentation
@@ -17,13 +18,34 @@ const dgm_arg = require('./dgm_arg.json');
 // Backup of current list and archives
 // --------------------
 
-const current_list = require('./current.json')
-const ok_list = new Object()
+const current_list = new Database('current.db', { verbose:console.log})
+const ok_list = new Database('current_ok.db', { verbose:console.log})
+
 // --------------------
 // Discord Client Handling
 // --------------------
 
 client.on('ready', () => {
+
+  // Check if the table "points" exists.
+  var table = current_list.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'list';").get();
+  if (!table['count(*)']) {
+    // If the table isn't there, create it and setup the database correctly.
+    current_list.prepare("CREATE TABLE list (name TEXT PRIMARY KEY, quantity INTEGER);").run();
+    // Ensure that the "id" row is always unique and indexed.
+    //current_list.prepare("CREATE UNIQUE INDEX idx_names_id ON list (name);").run();
+    current_list.pragma("synchronous = 1");
+  }
+
+  table = ok_list.prepare("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = 'list';").get();
+  if (!table['count(*)']) {
+    // If the table isn't there, create it and setup the database correctly. 
+    ok_list.prepare("CREATE TABLE list (name TEXT PRIMARY KEY, quantity INTEGER);").run();
+    // Ensure that the "id" row is always unique and indexed. 
+    //ok_list.prepare("CREATE UNIQUE INDEX idx_names_id ON list (name);").run();
+    ok_list.pragma("synchronous = 1");
+  }
+
   console.log(`Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`); 
   console.log(`Logged in as ${client.user.tag}!`);
 });
@@ -50,6 +72,7 @@ client.on('message', (receivedMsg) => {
 
   if (receivedMsg.content.indexOf(config.prefix) === 0) processCmd(receivedMsg, logs) // Process if starts with configured prefix
 
+  console.log("receivedMsg.mentions.members.first")
   console.log(receivedMsg.mentions.members.first())
 
 //  if (receivedMsg.mentions.members.users === 2 && )
@@ -122,10 +145,22 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
       case "add":
       case "a":
         if (args.length > 1) {
-          if (isNaN(current_list[args[1]])) current_list[args[1]]=0;
-          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : 1
-          current_list[args[1]] += quantity 
-          logChan.send("Added " + quantity + " of " + args[1] + " to the grocery list")
+           
+          
+          
+          
+          
+//          if (isNaN(current_list[args[1]])) current_list[args[1]]=0;
+//          quantity = (args.length > 2 && !(isNaN(parseInt(args[2])))) ? parseInt(args[2]) : 1
+          var toInsert = new Object()
+          toInsert['name']=args[1]
+          toInsert['quantity']=1
+          selectInDB(args[1], current_list)
+          selectInDB('tata', current_list)
+          insertInDB(toInsert,current_list)
+          
+//          current_list[args[1]] += quantity 
+//          logChan.send("Added " + quantity + " of " + args[1] + " to the grocery list")
         } else {
           logChan.send("Nothing to add to the grocery list")
         }
@@ -189,6 +224,39 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
     helpCmd(["dgm"], receivedMsg, logChan)
   }
 }
+
+
+// --------------------
+// Database Specific Fct
+// --------------------
+
+function existsInDB(name_to_test, db) {
+  const select = db.prepare('SELECT quantity FROM list WHERE name = ?');
+  const quantity = select.run(name_to_test)
+  
+  console.log(quantity)
+  return quantity
+}
+
+function insertInDB(item, db) {
+  const insert = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
+  console.log(item)
+  insert.run(item)
+}
+
+function insertManyInDB(list, db) {
+  const insert = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
+  
+  const insertMany = db.transaction((list) => {
+    for (const item of list) insert.run(item);
+  });
+}
+
+// function removeFromDB(item, db) {
+//   const delete = db.prepare('DELETE FROM list WHERE name=item.name');
+//   delete.run(item)
+// }
+
 
 // --------------------
 // Discord Client Login
