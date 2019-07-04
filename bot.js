@@ -72,8 +72,7 @@ client.on('message', (receivedMsg) => {
 
   if (receivedMsg.content.indexOf(config.prefix) === 0) processCmd(receivedMsg, logs) // Process if starts with configured prefix
 
-  console.log("receivedMsg.mentions.members.first")
-  console.log(receivedMsg.mentions.members.first())
+//  console.log(receivedMsg.mentions.members.first())
 
 //  if (receivedMsg.mentions.members.users === 2 && )
 //    return message.reply("Please mention a user to kick");
@@ -155,8 +154,8 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
           var toInsert = new Object()
           toInsert['name']=args[1]
           toInsert['quantity']=1
-          selectInDB(args[1], current_list)
-          selectInDB('tata', current_list)
+          existsInDB(args[1], current_list)
+          existsInDB('tata', current_list)
           insertInDB(toInsert,current_list)
           
 //          current_list[args[1]] += quantity 
@@ -232,16 +231,20 @@ function groceriesHandlingCmd(args, receivedMsg, logChan) {
 
 function existsInDB(name_to_test, db) {
   const select = db.prepare('SELECT quantity FROM list WHERE name = ?');
-  const quantity = select.run(name_to_test)
-  
-  console.log(quantity)
-  return quantity
+  const quantity = select.get(name_to_test)
+  if (quantity === undefined) return false
+  return true
 }
 
 function insertInDB(item, db) {
+  if (existsInDB(item['name'], db)) {
+  // Do Stuff
+  
+  } else {
   const insert = db.prepare('INSERT INTO list (name, quantity) VALUES (@name, @quantity)');
   console.log(item)
   insert.run(item)
+  }
 }
 
 function insertManyInDB(list, db) {
@@ -252,11 +255,11 @@ function insertManyInDB(list, db) {
   });
 }
 
-// function removeFromDB(item, db) {
-//   const delete = db.prepare('DELETE FROM list WHERE name=item.name');
-//   delete.run(item)
-// }
-
+function removeFromDB(item, db) {
+   name_to_delete = item['name']
+   const deletefromdb = db.prepare('DELETE FROM list WHERE name= ?');
+   deletefromdb.run(name_to_delete)
+}
 
 // --------------------
 // Discord Client Login
